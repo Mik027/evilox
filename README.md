@@ -12,4 +12,4 @@ Keep FORCE_WRITE to False in production mode
 
 Dockerfile :\
 Default SCRAP_RESULTS_PATH : /app/scrap-results\
-Default assigned PORT :  4000\
+Default assigned PORT :  4000
