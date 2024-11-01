@@ -4,6 +4,7 @@ from bs4 import BeautifulSoup
 import unicodedata
 from datetime import datetime
 import json
+import re
 
 # Contrôle pour forcer l'écriture dans le fichier JSON même si la date du jour est déjà présente
 FORCE_WRITE = False  # Changez à True pour forcer l'écriture
@@ -15,7 +16,20 @@ MEDIA_DIR_PATH = '/app/scrap-results/medias'
 
 def sanitize_filename(filename):
     filename = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode('utf-8')
+    
+    # Supprimer les caractères spéciaux
+    caracteres_interdits = r'[?!@#$%^&*()<>{}[\]|/\\:;"]'
+    filename = re.sub(caracteres_interdits, '', filename)
+    
+    # Remplacer les espaces par des tirets et mettre en minuscules
     filename = filename.lower().replace(' ', '-')
+    
+    # Supprimer les tirets multiples
+    filename = re.sub(r'-+', '-', filename)
+    
+    # Supprimer les tirets au début et à la fin
+    filename = filename.strip('-')
+    
     return filename
 
 def download_media():

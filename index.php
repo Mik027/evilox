@@ -27,7 +27,7 @@ if ($tri === 'date_desc') {
 }
 
 // Nombre de médias par page
-$mediasParPage = 20;
+$mediasParPage = 18;
 $totalMedias = count($medias);
 $totalPages = ceil($totalMedias / $mediasParPage);
 
