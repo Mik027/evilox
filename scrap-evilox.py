@@ -6,10 +6,8 @@ from datetime import datetime
 import json
 import re
 
-# Contrôle pour forcer l'écriture dans le fichier JSON même si la date du jour est déjà présente
-FORCE_WRITE = False  # Changez à True pour forcer l'écriture
+FORCE_WRITE = False
 
-# Récupérer les chemins depuis les variables d'environnement
 SCRAP_RESULTS_PATH = os.getenv('SCRAP_RESULTS_PATH', '/app/scrap-results')
 MEDIA_JSON_PATH = '/app/scrap-results/medias.json'
 MEDIA_DIR_PATH = '/app/scrap-results/medias'
@@ -17,25 +15,30 @@ MEDIA_DIR_PATH = '/app/scrap-results/medias'
 def sanitize_filename(filename):
     filename = unicodedata.normalize('NFKD', filename).encode('ascii', 'ignore').decode('utf-8')
     
-    # Supprimer les caractères spéciaux
     caracteres_interdits = r'[?!@#$%^&*()<>{}[\]|/\\:;"]'
     filename = re.sub(caracteres_interdits, '', filename)
     
-    # Remplacer les espaces par des tirets et mettre en minuscules
     filename = filename.lower().replace(' ', '-')
     
-    # Supprimer les tirets multiples
     filename = re.sub(r'-+', '-', filename)
     
-    # Supprimer les tirets au début et à la fin
     filename = filename.strip('-')
     
     return filename
 
 def download_media():
     url = 'https://evilox.com/'
-    response = requests.get(url)
-    
+    try:
+        response = requests.get(url, verify=False)
+    except requests.exceptions.RequestException as e:
+        print(f'HTTPS a échoué ({e}), tentative avec HTTP...')
+        url = 'http://evilox.com/'
+        try:
+            response = requests.get(url)
+        except requests.exceptions.RequestException as e:
+            print(f'Erreur lors de la récupération de la page : {e}')
+            return
+        
     if response.status_code != 200:
         print(f'Erreur lors de la récupération de la page : {response.status_code}')
         return
@@ -61,12 +64,17 @@ def download_media():
         media_url = card.find('img')['src'] if card.find('img') else card.find('source')['src'] if card.find('source') else None
         if media_url.startswith('/'):
             media_url = 'https://evilox.com' + media_url
+            try:
+                test_response = requests.get(media_url, verify=False)
+                if test_response.status_code != 200:
+                    media_url = 'http://evilox.com' + media_url
+            except:
+                media_url = 'http://evilox.com' + media_url
         
         print(f'URL du média : {media_url}')
 
         sanitized_title = sanitize_filename(title)
 
-        # Déterminer la catégorie
         if media_url.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
             category = 'images'
         elif media_url.lower().endswith(('.mp4', '.avi', '.mov', '.mkv')):
@@ -74,9 +82,8 @@ def download_media():
         else:
             category = 'autres'
 
-        # Téléchargement du média
         try:
-            media_response = requests.get(media_url)
+            media_response = requests.get(media_url, verify=False)
             extension = media_url.split('.')[-1] if '.' in media_url else 'jpg'
             media_path = os.path.join(MEDIA_DIR_PATH, f'{sanitized_title}.{extension}')
             with open(media_path, 'wb') as media_file:
@@ -85,7 +92,6 @@ def download_media():
             print(f'Erreur lors du téléchargement du média : {e}')
             continue
 
-        # Ajout des informations dans media_list
         today_date = datetime.now().strftime('%Y-%m-%d')
         description_element = card.find('p', class_='card-text')
         description = description_element.get_text(strip=True) if description_element else 'Aucune description'
@@ -100,7 +106,6 @@ def download_media():
         media_list.append(media_info)
         print(f'Ajouté à la liste : {media_info}')
 
-    # Écriture des données dans MEDIA_JSON_PATH
     if media_list:
         try:
             if os.path.exists(MEDIA_JSON_PATH):
